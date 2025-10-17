@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+    <title>After School Lessons</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+    <script src="lessons.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1 v-text="sitename"></h1>
+            <button v-on:click="showCheckout">
+                {{cartItemCount}}
+                <i class="fa-solid fa-cart-shopping"></i>
+                Checkout <br>
+            </button>
+        </header>
+        <main>
+            <!-- Grid wrapper: class added -->
+            <div v-if="showLesson" class="lessons-grid">
+                <!-- Card: class added -->
+                <div v-for="lesson in lessons" :key="lesson.id" class="lesson-card">
+                    <figure>
+                        <img :src="lesson.image" :alt="lesson.title">
+                    </figure>
+
+                    <!-- Content wrapper for lessons + info -->
+                    <div class="content">
+                        <h2 v-text="lesson.title"></h2>
+                        <p v-html="lesson.description"></p>
+
+                        <div class="lesson-meta">
+                            <span>Price: {{lesson.price}}</span>
+                            <span>Available: {{lesson.availableInventory - cartCount(lesson.id)}}</span>
+
+                            <span class="rating">
+                                <span v-for="n in lesson.rating">★</span>
+                                <span v-for="n in 5-lesson.rating">☆</span>
+                            </span>
+
+                            <!-- Add button  -->
+                            <button v-on:click="addToCart(lesson)" v-if="canAddToCart">
+                                Add to cart
+                            </button>
+
+                            <span v-if="lesson.availableInventory === cartCount(lesson.id)">
+                                All out!
+                            </span>
+                            <span v-else-if="lesson.availableInventory - cartCount(lesson.id) < 3">
+                                Only {{lesson.availableInventory - cartCount(lesson.id)}} left!
+                            </span>
+                            <span v-else>Book now!</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else>
+                <h2 class="checkout-title">Checkout</h2>
+                <p>
+                    <strong>First Name:</strong>
+                    <input v-model.trim="order.firstName"/>
+                </p>
+                <p>
+                    <strong>Last Name:</strong>
+                    <input v-model="order.lastName"/>
+                </p>
+                <p>
+                    <strong>Address:</strong> <input v-model="order.address"/>
+                </p>
+                <p>
+                    <strong>City:</strong> <input v-model="order.city"/>
+                </p>
+                <p>
+                    <strong>State:</strong>
+                    <select v-model="order.state">
+                        <option disabled value="">State</option>
+                        <option v-bind:value="states.AL">AL</option>
+                        <option v-bind:value="states.AR">AR</option>
+                        <option v-bind:value="states.CA">CA</option>
+                        <option v-bind:value="states.NV">NV</option>
+                    </select>
+                </p>
+                <p>
+                    <strong>Zip/Postal Code:</strong> <input v-model="order.zip"/>
+                </p>
+                <p><input type="checkbox" id="gift" value="true" v-model="order.gift" v-bind:true-value="order.sendGift" v-bind:false-value="order.dontSendGift">
+                    <label for="gift">Ship As Gift?</label></p>
+
+                <p><input type="radio" id="home" value="Home" v-model="order.method">
+                    <label for="home">Home</label>
+                <input type="radio" id="business" value="Business" v-model="order.method">
+                    <label for="business">Business</label></p>
+
+                <h2>Order Information</h2>
+                <p>First Name: {{order.firstName}}</p>
+                <p>Last Name: {{order.lastName}}</p>
+                <p>Address: {{order.address}}</p>
+                <p>City: {{order.city}}</p>
+                <p>Zip: {{order.zip}}</p>
+                <p>State: {{order.state}}</p>
+                <p>Gift: {{order.gift}}</p>
+                <p>Method: {{order.method}}</p>
+                <button v-on:click="submitForm">Place Order</button>
+            </div>
+        </main>
+    </div>
+
+    <script type="text/javascript">
+        var webstore = new Vue({
+            el:'#app',
+            data: {
+                sitename:'After School Lessons',
+                lessons: lessons, 
+                states: {
+                        AL: 'Alabama',
+                        AR: 'Arizona',
+                        CA: 'California',
+                        NV: 'Nevada'
+                    },
+                cart: [],
+                showLesson: true,
+                order: {
+                    firstName: '',
+                    lastName: '',
+                    address: '',
+                    city: '',
+                    zip: '',
+                    state: '',
+                    method: 'Home',
+                    sendGift: 'Send as a gift',
+                    dontSendGift: 'Do not send as a gift'
+                }
+            },
+            methods:{
+                addToCart:function (lesson) {
+                    this.cart.push(lesson.id);
+                },
+                showCheckout() {
+                    this.showLesson = !this.showLesson;
+                },
+                submitForm(){
+                    alert('Order submitted!');
+                },
+                canAddToCart: function(lesson){
+                    return this.cartItemCount < lesson.availableInventory;
+                },
+                cartCount(id){
+                    let count = 0;
+                    for (let i = 0; i < this.cart.length; i++) {
+                        if (this.cart[i] === id) {
+                            count++;
+                        }
+                    }
+                    return count;
+                }
+            },
+            computed: {
+                cartItemCount: function() {
+                    return this.cart.length ;
+                },
+                sortedLessons () {
+                    let lessonsArray = this.lessons.slice(0);
+                    function compare(a,b) {
+                        if (a.price > b.price)
+                            return 1;
+                        if (a.price < b.price)
+                            return -1;
+                        return 0;
+                    }
+                    return lessonsArray.sort(compare);   
+                }
+            },
+        });
+    </script>
+</body>
+</html>
