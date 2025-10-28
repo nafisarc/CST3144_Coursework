@@ -18,15 +18,13 @@
             </button>
         </header>
         <main>
-            <!-- Grid wrapper: class added -->
+            <!-- Grid wrapper -->
             <div v-if="showLesson" class="lessons-grid">
-                <!-- Card: class added -->
                 <div v-for="lesson in lessons" :key="lesson.id" class="lesson-card">
                     <figure>
                         <img :src="lesson.image" :alt="lesson.title">
                     </figure>
 
-                    <!-- Content wrapper for lessons + info -->
                     <div class="content">
                         <h2 v-text="lesson.title"></h2>
                         <p v-html="lesson.description"></p>
@@ -40,8 +38,7 @@
                                 <span v-for="n in 5-lesson.rating">☆</span>
                             </span>
 
-                            <!-- Add button  -->
-                            <button v-on:click="addToCart(lesson)" v-if="canAddToCart">
+                            <button v-on:click="addToCart(lesson)" v-if="canAddToCart(lesson)">
                                 Add to cart
                             </button>
 
@@ -57,53 +54,110 @@
                 </div>
             </div>
 
+            <!-- CHECKOUT: Cart preview + two-column layout -->
             <div v-else>
-                <h2 class="checkout-title">Checkout</h2>
-                <p>
-                    <strong>First Name:</strong>
-                    <input v-model.trim="order.firstName"/>
-                </p>
-                <p>
-                    <strong>Last Name:</strong>
-                    <input v-model="order.lastName"/>
-                </p>
-                <p>
-                    <strong>Address:</strong> <input v-model="order.address"/>
-                </p>
-                <p>
-                    <strong>City:</strong> <input v-model="order.city"/>
-                </p>
-                <p>
-                    <strong>State:</strong>
-                    <select v-model="order.state">
-                        <option disabled value="">State</option>
-                        <option v-bind:value="states.AL">AL</option>
-                        <option v-bind:value="states.AR">AR</option>
-                        <option v-bind:value="states.CA">CA</option>
-                        <option v-bind:value="states.NV">NV</option>
-                    </select>
-                </p>
-                <p>
-                    <strong>Zip/Postal Code:</strong> <input v-model="order.zip"/>
-                </p>
-                <p><input type="checkbox" id="gift" value="true" v-model="order.gift" v-bind:true-value="order.sendGift" v-bind:false-value="order.dontSendGift">
-                    <label for="gift">Ship As Gift?</label></p>
+                <!-- Cart items preview (appears only if cart has items) -->
+                <section class="cart-items-section" v-if="cartItemCount > 0">
+                    <h2>Your Cart</h2>
 
-                <p><input type="radio" id="home" value="Home" v-model="order.method">
-                    <label for="home">Home</label>
-                <input type="radio" id="business" value="Business" v-model="order.method">
-                    <label for="business">Business</label></p>
+                    <div class="cart-items">
+                        <div class="cart-item" v-for="item in cartItems" :key="item.lesson.id">
+                            <div class="cart-left">
+                                <img :src="item.lesson.image" :alt="item.lesson.title" class="cart-item-img">
+                                <div class="cart-item-details">
+                                    <h4>{{item.lesson.title}}</h4>
+                                    <p class="small">Price: {{item.lesson.price}}</p>
+                                    <p class="small">Qty: {{item.qty}}</p>
+                                </div>
+                            </div>
 
-                <h2>Order Information</h2>
-                <p>First Name: {{order.firstName}}</p>
-                <p>Last Name: {{order.lastName}}</p>
-                <p>Address: {{order.address}}</p>
-                <p>City: {{order.city}}</p>
-                <p>Zip: {{order.zip}}</p>
-                <p>State: {{order.state}}</p>
-                <p>Gift: {{order.gift}}</p>
-                <p>Method: {{order.method}}</p>
-                <button v-on:click="submitForm">Place Order</button>
+                            <div class="cart-right">
+                                <p class="cart-item-price">{{item.subtotal}}</p>
+                                <button class="remove-btn" @click="removeFromCart(item.lesson.id)">Remove one</button>
+                            </div>
+                        </div>
+
+                        <!-- total -->
+                        <div class="cart-total">
+                            <strong>Total:</strong>
+                            <span>{{cartTotal}}</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- If cart empty -->
+                <section class="cart-items-section empty" v-else>
+                    <h2>Your Cart</h2>
+                    <p>Your cart is empty — add some lessons!</p>
+                </section>
+
+                <!-- Checkout layout: two separate divs -->
+                <div class="checkout-container">
+                    <!-- Left: input form -->
+                    <div class="checkout-form">
+                        <h2>Checkout</h2>
+
+                        <label><strong>First Name:</strong>
+                            <input v-model.trim="order.firstName" />
+                        </label>
+
+                        <label><strong>Last Name:</strong>
+                            <input v-model="order.lastName" />
+                        </label>
+
+                        <label><strong>Address:</strong>
+                            <input v-model="order.address" />
+                        </label>
+
+                        <label><strong>City:</strong>
+                            <input v-model="order.city" />
+                        </label>
+
+                        <label><strong>State:</strong>
+                            <select v-model="order.state">
+                                <option disabled value="">State</option>
+                                <option v-bind:value="states.AL">AL</option>
+                                <option v-bind:value="states.AR">AR</option>
+                                <option v-bind:value="states.CA">CA</option>
+                                <option v-bind:value="states.NV">NV</option>
+                            </select>
+                        </label>
+
+                        <label><strong>Zip/Postal Code:</strong>
+                            <input v-model="order.zip" />
+                        </label>
+
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="gift" value="true" v-model="order.gift" v-bind:true-value="order.sendGift" v-bind:false-value="order.dontSendGift">
+                            <label for="gift">Ship As Gift?</label>
+                        </div>
+
+                        <div class="radio-row">
+                            <input type="radio" id="home" value="Home" v-model="order.method">
+                            <label for="home">Home</label>
+
+                            <input type="radio" id="business" value="Business" v-model="order.method">
+                            <label for="business">Business</label>
+                        </div>
+                    </div>
+
+                    <!-- Right: order summary -->
+                    <div class="order-summary">
+                        <h2>Order Information</h2>
+
+                        <div class="summary-line"><strong>First Name:</strong> <span>{{order.firstName}}</span></div>
+                        <div class="summary-line"><strong>Last Name:</strong> <span>{{order.lastName}}</span></div>
+                        <div class="summary-line"><strong>Address:</strong> <span>{{order.address}}</span></div>
+                        <div class="summary-line"><strong>City:</strong> <span>{{order.city}}</span></div>
+                        <div class="summary-line"><strong>Zip:</strong> <span>{{order.zip}}</span></div>
+                        <div class="summary-line"><strong>State:</strong> <span>{{order.state}}</span></div>
+                        <div class="summary-line"><strong>Gift:</strong> <span>{{order.gift}}</span></div>
+                        <div class="summary-line"><strong>Method:</strong> <span>{{order.method}}</span></div>
+
+                        <!-- Make the place order button pretty -->
+                        <button class="place-order-btn" v-on:click="submitForm">Place Order</button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -113,7 +167,7 @@
             el:'#app',
             data: {
                 sitename:'After School Lessons',
-                lessons: lessons, 
+                lessons: lessons,
                 states: {
                         AL: 'Alabama',
                         AR: 'Arizona',
@@ -155,11 +209,42 @@
                         }
                     }
                     return count;
+                },
+                removeFromCart(lessonId) {
+                    // remove a single occurrence of lessonId from cart
+                    const idx = this.cart.indexOf(lessonId);
+                    if (idx > -1) this.cart.splice(idx, 1);
                 }
             },
             computed: {
                 cartItemCount: function() {
                     return this.cart.length ;
+                },
+                // aggregated cart items with qty and subtotal
+                cartItems() {
+                    const map = {};
+                    for (let i = 0; i < this.cart.length; i++) {
+                        const id = this.cart[i];
+                        if (!map[id]) map[id] = 0;
+                        map[id]++;
+                    }
+                    const arr = [];
+                    for (const idStr in map) {
+                        const id = Number(idStr);
+                        const lesson = this.lessons.find(l => l.id === id);
+                        if (lesson) {
+                            const qty = map[id];
+                            arr.push({
+                                lesson,
+                                qty,
+                                subtotal: lesson.price * qty
+                            });
+                        }
+                    }
+                    return arr;
+                },
+                cartTotal() {
+                    return this.cartItems.reduce((s, it) => s + it.subtotal, 0);
                 },
                 sortedLessons () {
                     let lessonsArray = this.lessons.slice(0);
@@ -170,7 +255,7 @@
                             return -1;
                         return 0;
                     }
-                    return lessonsArray.sort(compare);   
+                    return lessonsArray.sort(compare);
                 }
             },
         });
