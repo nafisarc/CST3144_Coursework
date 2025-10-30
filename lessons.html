@@ -17,7 +17,50 @@
                 Checkout <br>
             </button>
         </header>
+
+        <!-- SEARCH BAR (live) -->
+        <div class="search-bar">
+          <input
+            type="text"
+            v-model.trim="searchQuery"
+            placeholder="Search lessons by title, location or description..."
+            aria-label="Search lessons"
+          />
+          <button v-if="searchQuery" class="clear-btn" @click="clearSearch" title="Clear">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
         <main>
+            <!-- LIVE SEARCH RESULTS -->
+            <section class="search-results" v-if="searchQuery && searchResults.length">
+              <h2>Results</h2>
+              <div class="results-grid">
+                <div v-for="r in searchResults" :key="r.id" class="result-card">
+                  <img :src="r.image" :alt="r.title" class="result-thumb">
+                  <div class="result-info">
+                    <h4>{{ r.title }}</h4>
+                    <p class="small">{{ r.location }} • {{ r.price }}</p>
+                    <p class="small" v-html="r.description"></p>
+
+                    <div class="result-actions">
+                      <button 
+                        class="small-add-btn" 
+                        @click="addToCart(r)" 
+                        :disabled="!canAddToCart(r)">
+                        <i class="fa-solid fa-cart-plus"></i> Add
+                      </button>
+                      <span v-if="!canAddToCart(r)" class="small-muted">Full</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="search-results empty" v-else-if="searchQuery && !searchResults.length">
+              <p>No matches for “{{searchQuery}}”</p>
+            </section>
+
             <!-- Grid wrapper -->
             <div v-if="showLesson" class="lessons-grid">
                 <div v-for="lesson in lessons" :key="lesson.id" class="lesson-card">
@@ -30,7 +73,8 @@
                         <p v-html="lesson.description"></p>
 
                         <div class="lesson-meta">
-                            <span>Price: {{lesson.price}}</span>
+                            <span><i class="fa-solid fa-sack-dollar"></i> {{lesson.price}}</span>
+                            <span><i class="fa-solid fa-location-dot"></i> {{lesson.location}}</span>
                             <span>Available: {{lesson.availableInventory - cartCount(lesson.id)}}</span>
 
                             <span class="rating">
@@ -154,8 +198,14 @@
                         <div class="summary-line"><strong>Gift:</strong> <span>{{order.gift}}</span></div>
                         <div class="summary-line"><strong>Method:</strong> <span>{{order.method}}</span></div>
 
-                        <!-- Make the place order button pretty -->
-                        <button class="place-order-btn" v-on:click="submitForm">Place Order</button>
+                        <!-- Place order button -->
+                        <button 
+                        class="place-order-btn" 
+                        v-on:click="submitForm" 
+                        :disabled="cartItemCount === 0">
+                        Place Order
+                        </button>
+
                     </div>
                 </div>
             </div>
@@ -186,36 +236,101 @@
                     method: 'Home',
                     sendGift: 'Send as a gift',
                     dontSendGift: 'Do not send as a gift'
-                }
-            },
-            methods:{
-                addToCart:function (lesson) {
-                    this.cart.push(lesson.id);
                 },
+
+                // search-related
+                searchQuery: '',
+                searchResults: [],
+                _searchTimer: null
+            },
+            methods:{                
                 showCheckout() {
                     this.showLesson = !this.showLesson;
                 },
                 submitForm(){
                     alert('Order submitted!');
                 },
-                canAddToCart: function(lesson){
-                    return this.cartItemCount < lesson.availableInventory;
-                },
+                // count how many of a specific lesson id are in the cart
                 cartCount(id){
+                    const targetId = Number(id);
                     let count = 0;
                     for (let i = 0; i < this.cart.length; i++) {
-                        if (this.cart[i] === id) {
+                        if (Number(this.cart[i]) === targetId) {
                             count++;
                         }
                     }
                     return count;
                 },
+
+                // returns true if THIS lesson still has slots left
+                canAddToCart: function(lesson){
+                    // ensure numeric ids and inventory
+                    const id = Number(lesson.id);
+                    const available = Number(lesson.availableInventory) || 0;
+                    const currentlyInCart = this.cartCount(id);
+                    return currentlyInCart < available;
+                },
+
+                // add to cart but only if that lesson still has availability
+                addToCart: function (lesson) {
+                    if (!this.canAddToCart(lesson)) {
+                        // optional: show user message instead of silently failing
+                        // alert('No more slots for this lesson');
+                        return;
+                    }
+                    this.cart.push(Number(lesson.id));
+                },
+
                 removeFromCart(lessonId) {
                     // remove a single occurrence of lessonId from cart
                     const idx = this.cart.indexOf(lessonId);
                     if (idx > -1) this.cart.splice(idx, 1);
+                },
+
+                /* SEARCH helpers */
+                _doSearch() {
+                  const q = String(this.searchQuery || '').trim().toLowerCase();
+                  if (!q) {
+                    this.searchResults = [];
+                    return;
+                  }
+                  this.searchResults = this.lessons.filter(l => {
+                    return (
+                      String(l.title).toLowerCase().includes(q) ||
+                      String(l.description).toLowerCase().includes(q) ||
+                      String(l.location || '').toLowerCase().includes(q)
+                    );
+                  });
+                },
+                clearSearch() {
+                  this.searchQuery = '';
+                  this.searchResults = [];
+                  if (this._searchTimer) {
+                    clearTimeout(this._searchTimer);
+                    this._searchTimer = null;
+                  }
                 }
             },
+
+            watch: {
+              searchQuery(newVal) {
+                if (this._searchTimer) clearTimeout(this._searchTimer);
+                // debounce 300ms
+                this._searchTimer = setTimeout(() => {
+                  this._doSearch();
+                  this._searchTimer = null;
+                }, 300);
+
+                if (!newVal) {
+                  this.searchResults = [];
+                  if (this._searchTimer) {
+                    clearTimeout(this._searchTimer);
+                    this._searchTimer = null;
+                  }
+                }
+              }
+            },
+
             computed: {
                 cartItemCount: function() {
                     return this.cart.length ;
@@ -224,27 +339,27 @@
                 cartItems() {
                     const map = {};
                     for (let i = 0; i < this.cart.length; i++) {
-                        const id = this.cart[i];
+                        const id = Number(this.cart[i]);
                         if (!map[id]) map[id] = 0;
                         map[id]++;
                     }
                     const arr = [];
                     for (const idStr in map) {
                         const id = Number(idStr);
-                        const lesson = this.lessons.find(l => l.id === id);
+                        const lesson = this.lessons.find(l => Number(l.id) === id);
                         if (lesson) {
                             const qty = map[id];
                             arr.push({
                                 lesson,
                                 qty,
-                                subtotal: lesson.price * qty
+                                subtotal: Number(lesson.price) * qty
                             });
                         }
                     }
                     return arr;
                 },
                 cartTotal() {
-                    return this.cartItems.reduce((s, it) => s + it.subtotal, 0);
+                    return this.cartItems.reduce((s, it) => s + Number(it.subtotal), 0);
                 },
                 sortedLessons () {
                     let lessonsArray = this.lessons.slice(0);
