@@ -10,15 +10,39 @@
 <body>
     <div id="app">
         <header>
-            <h1 v-text="sitename"></h1>
-            <button v-on:click="showCheckout">
+            <div class="header-left">
+                <h1 v-text="sitename"></h1>
+
+                <!-- SORT CONTROLS -->
+                <div class="sort-controls" role="group" aria-label="Sort lessons">
+                  <label for="sortKey" class="visually-hidden">Sort by</label>
+                  <select id="sortKey" v-model="sortKey" title="Sort by">
+                    <option value="title">Title</option>
+                    <option value="price">Price</option>
+                    <option value="location">Location</option>
+                    <option value="availability">Availability</option>
+                  </select>
+
+                  <button
+                    class="sort-toggle-btn"
+                    v-on:click="toggleSortDir"
+                    :title="sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'"
+                    aria-pressed="false"
+                  >
+                    <i v-if="sortDir === 'asc'" class="fa-solid fa-arrow-up"></i>
+                    <i v-else class="fa-solid fa-arrow-down"></i>
+                  </button>
+                </div>
+            </div>
+
+            <button v-on:click="showCheckout" aria-label="Cart and checkout" :disabled="cartItemCount === 0">
                 {{cartItemCount}}
                 <i class="fa-solid fa-cart-shopping"></i>
                 Checkout <br>
             </button>
         </header>
 
-        <!-- SEARCH BAR (live) -->
+        <!-- SEARCH BAR -->
         <div class="search-bar">
           <input
             type="text"
@@ -26,13 +50,13 @@
             placeholder="Search lessons by title, location or description..."
             aria-label="Search lessons"
           />
-          <button v-if="searchQuery" class="clear-btn" @click="clearSearch" title="Clear">
+          <button v-if="searchQuery" class="clear-btn" v-on:click="clearSearch" title="Clear">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
         <main>
-            <!-- LIVE SEARCH RESULTS -->
+            <!-- SEARCH RESULTS -->
             <section class="search-results" v-if="searchQuery && searchResults.length">
               <h2>Results</h2>
               <div class="results-grid">
@@ -46,7 +70,7 @@
                     <div class="result-actions">
                       <button 
                         class="small-add-btn" 
-                        @click="addToCart(r)" 
+                        v-on:click="addToCart(r)" 
                         :disabled="!canAddToCart(r)">
                         <i class="fa-solid fa-cart-plus"></i> Add
                       </button>
@@ -63,7 +87,8 @@
 
             <!-- Grid wrapper -->
             <div v-if="showLesson" class="lessons-grid">
-                <div v-for="lesson in lessons" :key="lesson.id" class="lesson-card">
+                <!-- NOTE: this now iterates sortedLessons -->
+                <div v-for="lesson in sortedLessons" :key="lesson.id" class="lesson-card">
                     <figure>
                         <img :src="lesson.image" :alt="lesson.title">
                     </figure>
@@ -117,7 +142,7 @@
 
                             <div class="cart-right">
                                 <p class="cart-item-price">{{item.subtotal}}</p>
-                                <button class="remove-btn" @click="removeFromCart(item.lesson.id)">Remove one</button>
+                                <button class="remove-btn" v-on:click="removeFromCart(item.lesson.id)">Remove one</button>
                             </div>
                         </div>
 
@@ -241,17 +266,21 @@
                 // search-related
                 searchQuery: '',
                 searchResults: [],
-                _searchTimer: null
+                _searchTimer: null,
+
+                // NEW sorting state (minimal code change)
+                sortKey: 'title',    // 'title' | 'price' | 'location' | 'availability'
+                sortDir: 'asc'       // 'asc' | 'desc'
             },
             methods:{                
-                showCheckout() {
+                showCheckout: function() {
                     this.showLesson = !this.showLesson;
                 },
-                submitForm(){
+                submitForm: function(){
                     alert('Order submitted!');
                 },
                 // count how many of a specific lesson id are in the cart
-                cartCount(id){
+                cartCount: function(id){
                     const targetId = Number(id);
                     let count = 0;
                     for (let i = 0; i < this.cart.length; i++) {
@@ -264,7 +293,6 @@
 
                 // returns true if THIS lesson still has slots left
                 canAddToCart: function(lesson){
-                    // ensure numeric ids and inventory
                     const id = Number(lesson.id);
                     const available = Number(lesson.availableInventory) || 0;
                     const currentlyInCart = this.cartCount(id);
@@ -274,27 +302,24 @@
                 // add to cart but only if that lesson still has availability
                 addToCart: function (lesson) {
                     if (!this.canAddToCart(lesson)) {
-                        // optional: show user message instead of silently failing
-                        // alert('No more slots for this lesson');
                         return;
                     }
                     this.cart.push(Number(lesson.id));
                 },
 
-                removeFromCart(lessonId) {
-                    // remove a single occurrence of lessonId from cart
+                removeFromCart: function(lessonId) {
                     const idx = this.cart.indexOf(lessonId);
                     if (idx > -1) this.cart.splice(idx, 1);
                 },
 
                 /* SEARCH helpers */
-                _doSearch() {
+                _doSearch: function() {
                   const q = String(this.searchQuery || '').trim().toLowerCase();
                   if (!q) {
                     this.searchResults = [];
                     return;
                   }
-                  this.searchResults = this.lessons.filter(l => {
+                  this.searchResults = this.lessons.filter(function(l) {
                     return (
                       String(l.title).toLowerCase().includes(q) ||
                       String(l.description).toLowerCase().includes(q) ||
@@ -302,23 +327,28 @@
                     );
                   });
                 },
-                clearSearch() {
+                clearSearch: function() {
                   this.searchQuery = '';
                   this.searchResults = [];
                   if (this._searchTimer) {
                     clearTimeout(this._searchTimer);
                     this._searchTimer = null;
                   }
+                },
+
+                // NEW: toggle sort direction
+                toggleSortDir: function() {
+                  this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
                 }
             },
 
             watch: {
-              searchQuery(newVal) {
+              searchQuery: function(newVal) {
+                var self = this;
                 if (this._searchTimer) clearTimeout(this._searchTimer);
-                // debounce 300ms
-                this._searchTimer = setTimeout(() => {
-                  this._doSearch();
-                  this._searchTimer = null;
+                this._searchTimer = setTimeout(function() {
+                  self._doSearch();
+                  self._searchTimer = null;
                 }, 300);
 
                 if (!newVal) {
@@ -336,7 +366,7 @@
                     return this.cart.length ;
                 },
                 // aggregated cart items with qty and subtotal
-                cartItems() {
+                cartItems: function() {
                     const map = {};
                     for (let i = 0; i < this.cart.length; i++) {
                         const id = Number(this.cart[i]);
@@ -346,31 +376,60 @@
                     const arr = [];
                     for (const idStr in map) {
                         const id = Number(idStr);
-                        const lesson = this.lessons.find(l => Number(l.id) === id);
+                        const lesson = this.lessons.find(function(l) { return Number(l.id) === id; });
                         if (lesson) {
                             const qty = map[id];
                             arr.push({
-                                lesson,
-                                qty,
+                                lesson: lesson,
+                                qty: qty,
                                 subtotal: Number(lesson.price) * qty
                             });
                         }
                     }
                     return arr;
                 },
-                cartTotal() {
-                    return this.cartItems.reduce((s, it) => s + Number(it.subtotal), 0);
+                cartTotal: function() {
+                    return this.cartItems.reduce(function(s, it) { return s + Number(it.subtotal); }, 0);
                 },
-                sortedLessons () {
-                    let lessonsArray = this.lessons.slice(0);
-                    function compare(a,b) {
-                        if (a.price > b.price)
-                            return 1;
-                        if (a.price < b.price)
-                            return -1;
-                        return 0;
+
+                // NEW computed sortedLessons (uses sortKey + sortDir)
+                sortedLessons: function () {
+                    var lessonsArray = this.lessons.slice(0);
+                    var key = this.sortKey;
+                    var dir = this.sortDir === 'asc' ? 1 : -1;
+                    var self = this;
+
+                    function valueFor(lesson) {
+                      if (key === 'price') {
+                        return Number(lesson.price) || 0;
+                      }
+                      if (key === 'availability') {
+                        return (Number(lesson.availableInventory) || 0) - (lesson && lesson.id ? self.cartCount(lesson.id) : 0);
+                      }
+                      if (key === 'location') {
+                        return String(lesson.location || '').toLowerCase();
+                      }
+                      return String(lesson.title || '').toLowerCase();
                     }
-                    return lessonsArray.sort(compare);
+
+                    lessonsArray.sort(function(a, b) {
+                      var va = valueFor(a);
+                      var vb = valueFor(b);
+
+                      if (typeof va === 'number' && typeof vb === 'number') {
+                        if (va > vb) return 1 * dir;
+                        if (va < vb) return -1 * dir;
+                        return 0;
+                      }
+
+                      var sa = String(va).toLowerCase();
+                      var sb = String(vb).toLowerCase();
+                      if (sa > sb) return 1 * dir;
+                      if (sa < sb) return -1 * dir;
+                      return 0;
+                    });
+
+                    return lessonsArray;
                 }
             },
         });

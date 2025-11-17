@@ -16,6 +16,12 @@ header {
     align-items: center;
 }
 
+.header-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
 header h1 {
     margin: 0;
     font-size: 28px;
@@ -33,6 +39,47 @@ header button {
 
 header button:hover {
     background-color: #b4e9f7;
+}
+
+/* Sort control styles */
+.sort-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* make select visually consistent with app's inputs */
+.sort-controls select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 2px solid #c9f2ff;
+  background: linear-gradient(180deg, #ffffff 0%, #f7feff 100%);
+  font-size: 14px;
+}
+
+/* toggle button */
+.sort-toggle-btn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #c9f2ff;
+  font-size: 14px;
+}
+.sort-toggle-btn:hover { background: #b4e9f7; }
+
+/* tiny utility to hide visually but keep accessible */
+.visually-hidden {
+  border: 0 !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  clip-path: inset(50%) !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+  white-space: nowrap !important;
 }
 
 /* Search bar */
@@ -372,7 +419,7 @@ main {
 .checkout-form input[type="text"],
 .checkout-form input[type="tel"],
 .checkout-form input[type="email"],
-.checkout-form input[type="number"],
+checkout-form input[type="number"],
 .checkout-form select,
 .checkout-form input {
     width: 100%;
@@ -472,7 +519,6 @@ main {
     background: linear-gradient(135deg, #eee 0%, #ddd 100%);
     color: #777;
 }
-
 
 /* Misc */
 input, select {
