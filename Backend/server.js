@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 
@@ -18,7 +19,7 @@ app.use(function (req, res, next) {
 });
 
 // --- MongoDB setup ---
-const uri = 'mongodb+srv://nafisaRC:wednesday@cluster1.gueiucf.mongodb.net/';
+const uri = process.env.MONGO_URI;
 
 const client = new MongoClient(uri);
 
