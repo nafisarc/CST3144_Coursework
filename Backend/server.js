@@ -3,7 +3,7 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // --- Basic middleware ---
 
@@ -20,9 +20,7 @@ app.use(function (req, res, next) {
 
 // --- MongoDB setup ---
 const uri = process.env.MONGO_URI;
-
 const client = new MongoClient(uri);
-
 let db = null;
 
 // --- Start server AFTER DB connection ---
@@ -34,13 +32,12 @@ async function startServer() {
     await client.connect();
     console.log('Connected to MongoDB');
 
-    // Select the database
     db = client.db('webstore'); 
 
     // Start listening for HTTP requests
     app.listen(PORT, function () {
       console.log(`API server listening on http://localhost:${PORT}`);
-      console.log('Try:  http://localhost:3000/collection/lessons');
+      console.log('Try:  http://localhost:3000/collection/lessons (local dev)');
     });
   } catch (err) {
     console.error('Failed to connect to MongoDB', err);
@@ -83,7 +80,6 @@ app.get('/collection/:collectionName', async function (req, res, next) {
     next(e);
   }
 });
-
 
 // Basic error handler
 app.use(function (err, req, res, next) {
