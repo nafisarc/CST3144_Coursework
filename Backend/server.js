@@ -5,7 +5,6 @@ const { MongoClient, ObjectId } = require('mongodb');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Basic middleware ---
 
 // Parse JSON bodies
 app.use(express.json());
@@ -76,6 +75,22 @@ app.get('/collection/:collectionName', async function (req, res, next) {
   try {
     const docs = await req.collection.find({}).toArray();
     res.send(docs);
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.post('/collection/:collectionName', async function (req, res, next) {
+  try {
+    const newDoc = req.body; // the JSON sent from the front-end
+
+    const result = await req.collection.insertOne(newDoc);
+
+    // Respond with the saved document
+    res.status(201).send({
+      _id: result.insertedId,
+      ...newDoc
+    });
   } catch (e) {
     next(e);
   }
