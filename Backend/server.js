@@ -96,6 +96,38 @@ app.post('/collection/:collectionName', async function (req, res, next) {
   }
 });
 
+// Update lessons in the collection
+app.put('/collection/:collectionName/:id', async function (req, res, next) {
+  try {
+    const collectionName = req.params.collectionName;
+    const idParam = req.params.id;
+
+    let query;
+
+    if (collectionName === 'lessons') {
+      query = { id: Number(idParam) };
+    } else {
+      query = { _id: new ObjectId(idParam) };
+    }
+
+    const update = { $set: req.body }; // update whatever fields are sent
+
+    const result = await req.collection.updateOne(query, update);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: 'Document not found for update.' });
+    }
+
+    res.send({
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      updatedFields: req.body
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // Basic error handler
 app.use(function (err, req, res, next) {
   console.error('Unhandled error:', err);
