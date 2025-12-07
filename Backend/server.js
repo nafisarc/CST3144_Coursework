@@ -1,15 +1,17 @@
+// Load environment variables
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
+// Middleware
 // Parse JSON bodies
 app.use(express.json());
 
-// Logger middleware 
+// Logger middleware
 app.use(function (req, res, next) {
   const now = new Date().toISOString();
 
@@ -23,17 +25,16 @@ app.use(function (req, res, next) {
     console.log('Body:', req.body);
   }
 
-  // Log the status code
+  // Log the status code once the response finishes
   res.on('finish', () => {
     console.log('Status:', res.statusCode);
     console.log('------------------------');
   });
 
-  // Hand over to the next route
   next();
 });
 
-// Simple CORS 
+// Simple CORS
 app.use(function (req, res, next) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
@@ -41,23 +42,20 @@ app.use(function (req, res, next) {
   next();
 });
 
-// MongoDB setup
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri);
 let db = null;
 
-// Start server AFTER DB connection 
+// Start server after DB connection
 async function startServer() {
   console.log('server.js starting…');
 
   try {
-    // Connect to Atlas
     await client.connect();
     console.log('Connected to MongoDB');
 
-    db = client.db('webstore'); 
+    db = client.db('webstore');
 
-    // Start listening for HTTP requests
     app.listen(PORT, function () {
       console.log(`API server listening on http://localhost:${PORT}`);
       console.log('Try:  http://localhost:3000/collection/lessons (local dev)');
@@ -70,6 +68,7 @@ async function startServer() {
 
 startServer();
 
+// Shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down');
   try {
@@ -81,7 +80,6 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Routes
 
 // app.param to auto-load collection from the URL
 app.param('collectionName', function (req, res, next, collectionName) {
@@ -94,24 +92,76 @@ app.get('/', function (req, res) {
   res.send('Select a collection, e.g., /collection/lessons');
 });
 
+// Static image middleware
+app.get('/images/:fileName', function (req, res) {
+  const fileName = req.params.fileName;
+  const filePath = path.join(__dirname, 'images', fileName);
+
+  // Check if the file exists
+  fs.access(filePath, fs.constants.F_OK, function (err) {
+    if (err) {
+      // File does not exist
+      return res.status(404).send({ error: 'Image file not found' });
+    }
+
+    // File exists
+    res.sendFile(filePath);
+  });
+});
+
+// Search query for lessons
+function buildLessonSearchQuery(search) {
+  const trimmed = (search || '').trim();
+  if (!trimmed) return {};
+
+  const regex = new RegExp(trimmed, 'i'); // case-insensitive
+  return {
+    $or: [
+      { title: regex },
+      { description: regex },
+      { location: regex }
+    ]
+  };
+}
+
+// GET /lessons  
+app.get('/lessons', async function (req, res, next) {
+  try {
+    const search = req.query.q || '';
+    const collection = db.collection('lessons');
+    const query = buildLessonSearchQuery(search);
+
+    const docs = await collection.find(query).toArray();
+    res.send(docs);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /search?q=... 
+app.get('/search', async function (req, res, next) {
+  try {
+    const search = req.query.q || '';
+    const collection = db.collection('lessons');
+    const query = buildLessonSearchQuery(search);
+
+    const docs = await collection.find(query).toArray();
+    res.send(docs);
+  } catch (e) {
+    next(e);
+  }
+});
+
 // GET all documents from a collection
 app.get('/collection/:collectionName', async function (req, res, next) {
   try {
     const collectionName = req.params.collectionName;
-    const search = (req.query.q || '').trim();
-    
+    const search = req.query.q || '';
+
     let query = {};
 
-    // If searching lessons and q is provided, build a MongoDB regex query
-    if (collectionName === 'lessons' && search) {
-      const regex = new RegExp(search, 'i'); // case-insensitive
-      query = {
-        $or: [
-          { title: regex },
-          { description: regex },
-          { location: regex }
-        ]
-      };
+    if (collectionName === 'lessons') {
+      query = buildLessonSearchQuery(search);
     }
 
     const docs = await req.collection.find(query).toArray();
@@ -121,14 +171,12 @@ app.get('/collection/:collectionName', async function (req, res, next) {
   }
 });
 
-
+// POST a new document into a collection 
 app.post('/collection/:collectionName', async function (req, res, next) {
   try {
-    const newDoc = req.body; // the JSON sent from the front-end
-
+    const newDoc = req.body; // JSON from front-end
     const result = await req.collection.insertOne(newDoc);
 
-    // Respond with the saved document
     res.status(201).send({
       _id: result.insertedId,
       ...newDoc
@@ -138,7 +186,7 @@ app.post('/collection/:collectionName', async function (req, res, next) {
   }
 });
 
-// Update lessons in the collection
+// PUT to update lessons 
 app.put('/collection/:collectionName/:id', async function (req, res, next) {
   try {
     const collectionName = req.params.collectionName;
@@ -147,12 +195,14 @@ app.put('/collection/:collectionName/:id', async function (req, res, next) {
     let query;
 
     if (collectionName === 'lessons') {
+      // lessons identified by numeric id field
       query = { id: Number(idParam) };
     } else {
+      // other collections use MongoDB ObjectId
       query = { _id: new ObjectId(idParam) };
     }
 
-    const update = { $set: req.body }; // update whatever fields are sent
+    const update = { $set: req.body };
 
     const result = await req.collection.updateOne(query, update);
 
