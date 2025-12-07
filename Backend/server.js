@@ -18,18 +18,18 @@ app.use(function (req, res, next) {
   console.log('Method:', req.method);
   console.log('URL:', req.url);
 
-  // Only log body if it’s not empty (useful for POST/PUT)
+  // Only log body if it’s not empty
   if (Object.keys(req.body || {}).length > 0) {
     console.log('Body:', req.body);
   }
 
-  // When the response finishes, log the status code
+  // Log the status code
   res.on('finish', () => {
     console.log('Status:', res.statusCode);
     console.log('------------------------');
   });
 
-  // Hand over to the next middleware/route
+  // Hand over to the next route
   next();
 });
 
@@ -97,12 +97,30 @@ app.get('/', function (req, res) {
 // GET all documents from a collection
 app.get('/collection/:collectionName', async function (req, res, next) {
   try {
-    const docs = await req.collection.find({}).toArray();
+    const collectionName = req.params.collectionName;
+    const search = (req.query.q || '').trim();
+    
+    let query = {};
+
+    // If searching lessons and q is provided, build a MongoDB regex query
+    if (collectionName === 'lessons' && search) {
+      const regex = new RegExp(search, 'i'); // case-insensitive
+      query = {
+        $or: [
+          { title: regex },
+          { description: regex },
+          { location: regex }
+        ]
+      };
+    }
+
+    const docs = await req.collection.find(query).toArray();
     res.send(docs);
   } catch (e) {
     next(e);
   }
 });
+
 
 app.post('/collection/:collectionName', async function (req, res, next) {
   try {
