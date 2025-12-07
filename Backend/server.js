@@ -9,6 +9,30 @@ const PORT = process.env.PORT || 3000;
 // Parse JSON bodies
 app.use(express.json());
 
+// Logger middleware 
+app.use(function (req, res, next) {
+  const now = new Date().toISOString();
+
+  console.log('--- Incoming Request ---');
+  console.log('Time:', now);
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+
+  // Only log body if it’s not empty (useful for POST/PUT)
+  if (Object.keys(req.body || {}).length > 0) {
+    console.log('Body:', req.body);
+  }
+
+  // When the response finishes, log the status code
+  res.on('finish', () => {
+    console.log('Status:', res.statusCode);
+    console.log('------------------------');
+  });
+
+  // Hand over to the next middleware/route
+  next();
+});
+
 // Simple CORS 
 app.use(function (req, res, next) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,12 +41,12 @@ app.use(function (req, res, next) {
   next();
 });
 
-// --- MongoDB setup ---
+// MongoDB setup
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri);
 let db = null;
 
-// --- Start server AFTER DB connection ---
+// Start server AFTER DB connection 
 async function startServer() {
   console.log('server.js starting…');
 
@@ -57,7 +81,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// --- Routes ---
+// Routes
 
 // app.param to auto-load collection from the URL
 app.param('collectionName', function (req, res, next, collectionName) {
@@ -128,7 +152,7 @@ app.put('/collection/:collectionName/:id', async function (req, res, next) {
   }
 });
 
-// Basic error handler
+// Error handler
 app.use(function (err, req, res, next) {
   console.error('Unhandled error:', err);
   res.status(500).send({ error: 'Something went wrong on the server.' });
